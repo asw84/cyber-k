@@ -1,0 +1,255 @@
+import React, { useRef, useMemo, useState, useEffect } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import {
+    Float,
+    MeshTransmissionMaterial,
+    Html,
+    PerspectiveCamera,
+    Environment,
+    Text,
+} from "@react-three/drei";
+import {
+    EffectComposer,
+    Bloom,
+    Vignette,
+    Noise,
+    ChromaticAberration,
+} from "@react-three/postprocessing";
+import { BlendFunction } from "postprocessing";
+import * as THREE from "three";
+
+const KOREAN_WORDS = ["사랑", "꿈", "빛", "밤", "하늘", "영원"];
+
+function CyberRain() {
+    const count = 100;
+    const lines = useMemo(() => {
+        return Array.from({ length: count }, () => ({
+            position: [
+                (Math.random() - 0.5) * 50,
+                (Math.random() - 0.5) * 50,
+                (Math.random() - 0.5) * 30 - 10,
+            ],
+            speed: 0.1 + Math.random() * 0.2,
+            scale: [0.02, 2 + Math.random() * 5, 0.02],
+        }));
+    }, []);
+
+    return (
+        <group>
+            {lines.map((line, i) => (
+                <RainLine key={i} {...line} />
+            ))}
+        </group>
+    );
+}
+
+function RainLine({ position, speed, scale }) {
+    const ref = useRef();
+    useFrame((state, delta) => {
+        if (ref.current) {
+            ref.current.position.y += speed;
+            if (ref.current.position.y > 25) ref.current.position.y = -25;
+        }
+    });
+
+    return (
+        <mesh ref={ref} position={position} scale={scale}>
+            <boxGeometry />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.3} />
+        </mesh>
+    );
+}
+
+function Clock() {
+    const [time, setTime] = useState("");
+
+    useEffect(() => {
+        const updateTime = () => {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, "0");
+            const mm = String(now.getMinutes()).padStart(2, "0");
+            setTime(`${hh}:${mm}`);
+        };
+        updateTime();
+        const interval = setInterval(updateTime, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <Html
+            position={[0, 4, 0]}
+            center
+            style={{
+                pointerEvents: "none",
+                userSelect: "none",
+                opacity: 0.4,
+                color: "white",
+                fontFamily: "'Inter', sans-serif",
+                fontSize: "4rem",
+                fontWeight: 100,
+                letterSpacing: "10px",
+            }}
+        >
+            {time}
+        </Html>
+    );
+}
+
+function FallingText({ position, speed }) {
+    const ref = useRef();
+    const word = useMemo(() => KOREAN_WORDS[Math.floor(Math.random() * KOREAN_WORDS.length)], []);
+
+    useFrame((state, delta) => {
+        if (ref.current) {
+            ref.current.position.y -= speed;
+            if (ref.current.position.y < -30) ref.current.position.y = 30;
+        }
+    });
+
+    return (
+        <group ref={ref} position={position}>
+            <Html
+                transform
+                distanceFactor={15}
+                style={{
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                    opacity: 0.4,
+                    color: 'white',
+                    fontFamily: 'sans-serif',
+                    fontSize: '2rem',
+                    filter: 'blur(1px)',
+                    whiteSpace: 'nowrap',
+                    textShadow: '0 0 10px #ff00ff, 0 0 20px #ff00ff'
+                }}
+            >
+                {word}
+            </Html>
+        </group>
+    );
+}
+
+function LuxuryBackground() {
+    const textElements = useMemo(() => {
+        return Array.from({ length: 15 }, () => ({
+            position: [
+                (Math.random() - 0.5) * 60,
+                (Math.random() - 0.5) * 60,
+                -20,
+            ],
+            speed: 0.02 + Math.random() * 0.05,
+        }));
+    }, []);
+
+    return (
+        <group>
+            {textElements.map((props, i) => (
+                <FallingText key={i} {...props} />
+            ))}
+        </group>
+    );
+}
+
+function LuxuryGlass() {
+    const glass = useRef();
+    const core = useRef();
+
+    useFrame((state) => {
+        const t = state.clock.getElapsedTime();
+        if (glass.current) {
+            glass.current.rotation.x = t * 0.2;
+            glass.current.rotation.y = t * 0.3;
+        }
+        if (core.current) {
+            core.current.position.x = Math.sin(t * 1.5) * 0.5;
+            core.current.position.y = Math.cos(t * 1.5) * 0.5;
+        }
+    });
+
+    return (
+        <group>
+            {/* Internal Emissive Core */}
+            <mesh ref={core}>
+                <sphereGeometry args={[0.5, 32, 32]} />
+                <meshStandardMaterial
+                    color="#ff00ff"
+                    emissive="#ff00ff"
+                    emissiveIntensity={10}
+                />
+            </mesh>
+
+            {/* Main Glass Object */}
+            <mesh ref={glass}>
+                <torusKnotGeometry args={[1.5, 0.4, 128, 32]} />
+                <MeshTransmissionMaterial
+                    backside
+                    samples={16}
+                    thickness={5}
+                    chromaticAberration={1.5}
+                    anisotropy={0.5}
+                    distortion={0.2}
+                    distortionScale={0.5}
+                    temporalDistortion={0.1}
+                    ior={1.5}
+                    transmission={1}
+                    roughness={0}
+                    color="#ffffff"
+                />
+            </mesh>
+        </group>
+    );
+}
+
+export default function KoreanCyberpunk() {
+    const mouse = useRef([0, 0]);
+
+    return (
+        <Canvas
+            dpr={[1, 2]}
+            onPointerMove={(e) => {
+                mouse.current = [
+                    (e.clientX / window.innerWidth) * 2 - 1,
+                    -(e.clientY / window.innerHeight) * 2 + 1,
+                ];
+            }}
+        >
+            <color attach="background" args={["#050010"]} />
+            <PerspectiveCamera makeDefault position={[0, 0, 10]} fov={50} />
+
+            <ambientLight intensity={0.1} />
+
+            {/* Silhouette Side Lighting */}
+            <spotLight position={[10, 0, 5]} color="#ff00ff" intensity={300} angle={0.5} penumbra={1} castShadow />
+            <spotLight position={[-10, 0, 5]} color="#00ffff" intensity={300} angle={0.5} penumbra={1} castShadow />
+
+            {/* Point Lights for overall ambiance */}
+            <pointLight position={[0, 10, 5]} color="#ff00ff" intensity={50} />
+            <pointLight position={[0, -10, 5]} color="#00ffff" intensity={50} />
+
+            <CyberRain />
+            <LuxuryBackground />
+            <Clock />
+
+            <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
+                <LuxuryGlass />
+            </Float>
+
+            <Environment preset="night" />
+
+            <EffectComposer disableNormalPass>
+                <Bloom
+                    luminanceThreshold={0.8}
+                    mipmapBlur
+                    intensity={1.2}
+                    radius={0.4}
+                />
+                <Vignette eskil={false} offset={0.1} darkness={1.1} />
+                <ChromaticAberration
+                    blendFunction={BlendFunction.NORMAL}
+                    offset={[0.001, 0.001]}
+                />
+                <Noise opacity={0.02} />
+            </EffectComposer>
+        </Canvas>
+    );
+}
