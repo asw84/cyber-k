@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
     Float,
     MeshTransmissionMaterial,
@@ -224,21 +224,40 @@ function LuxuryGlass() {
     );
 }
 
+function RenderController({ lastActivity }) {
+    const { invalidate } = useThree();
+    useFrame(() => {
+        if (Date.now() - lastActivity.current < 5000) {
+            invalidate();
+        }
+    });
+    return null;
+}
+
 export default function KoreanCyberpunk() {
     const mouse = useRef([0, 0]);
     const [dpr, setDpr] = useState([1, 1.5]);
     const [lowPerf, setLowPerf] = useState(false);
+    const lastActivity = useRef(Date.now());
+
+    const handleInteraction = () => {
+        lastActivity.current = Date.now();
+    };
 
     return (
         <Canvas
+            frameloop="demand"
             dpr={dpr}
             onPointerMove={(e) => {
+                handleInteraction();
                 mouse.current = [
                     (e.clientX / window.innerWidth) * 2 - 1,
                     -(e.clientY / window.innerHeight) * 2 + 1,
                 ];
             }}
+            onPointerDown={handleInteraction}
         >
+            <RenderController lastActivity={lastActivity} />
             <PerformanceMonitor
                 onIncline={() => setLowPerf(false)}
                 onDecline={() => setLowPerf(true)}
