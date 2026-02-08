@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, invalidate } from "@react-three/fiber";
 import {
     Float,
     MeshTransmissionMaterial,
@@ -235,11 +235,14 @@ export default function KoreanCyberpunk() {
     useEffect(() => {
         const handleInteraction = () => {
             setIsActive(prev => {
-                if (!prev) return true;
+                if (!prev) {
+                    invalidate(); // Принудительный «пинок» движка
+                    return true;
+                }
                 return prev;
             });
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            timeoutRef.current = setTimeout(() => setIsActive(false), 20000); // Остановка через 20 секунд покоя
+            timeoutRef.current = setTimeout(() => setIsActive(false), 30000); // 30 секунд покоя до засыпания
         };
 
         handleInteraction();
@@ -260,11 +263,13 @@ export default function KoreanCyberpunk() {
             frameloop={isActive ? "always" : "demand"}
             dpr={dpr}
             onPointerMove={(e) => {
+                handleInteraction();
                 mouse.current = [
                     (e.clientX / window.innerWidth) * 2 - 1,
                     -(e.clientY / window.innerHeight) * 2 + 1,
                 ];
             }}
+            onPointerDown={handleInteraction}
         >
             <PerformanceMonitor
                 onIncline={() => setLowPerf(false)}
