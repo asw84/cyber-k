@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, invalidate } from "@react-three/fiber";
 import {
     Float,
     MeshTransmissionMaterial,
@@ -233,13 +233,22 @@ export default function KoreanCyberpunk() {
     const timeoutRef = useRef();
 
     const handleInteraction = () => {
-        setIsActive(true);
+        setIsActive((prev) => {
+            if (!prev) {
+                invalidate(); // Принудительно запрашиваем кадр для мгновенного пробуждения
+                return true;
+            }
+            return prev;
+        });
+
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        timeoutRef.current = setTimeout(() => setIsActive(false), 5000);
+        timeoutRef.current = setTimeout(() => {
+            setIsActive(false);
+        }, 10000); // Увеличим до 10 секунд для комфорта
     };
 
     useEffect(() => {
-        handleInteraction(); // Start active
+        handleInteraction();
         window.addEventListener("mousemove", handleInteraction);
         window.addEventListener("touchstart", handleInteraction);
         window.addEventListener("mousedown", handleInteraction);
