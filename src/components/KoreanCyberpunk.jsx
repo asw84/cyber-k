@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, invalidate } from "@react-three/fiber";
 import {
     Float,
     MeshTransmissionMaterial,
@@ -225,7 +225,6 @@ function LuxuryGlass() {
 }
 
 function RenderController({ lastActivity }) {
-    const { invalidate } = useThree();
     useFrame(() => {
         if (Date.now() - lastActivity.current < 5000) {
             invalidate();
@@ -242,7 +241,19 @@ export default function KoreanCyberpunk() {
 
     const handleInteraction = () => {
         lastActivity.current = Date.now();
+        invalidate();
     };
+
+    useEffect(() => {
+        window.addEventListener("mousemove", handleInteraction);
+        window.addEventListener("touchstart", handleInteraction);
+        window.addEventListener("mousedown", handleInteraction);
+        return () => {
+            window.removeEventListener("mousemove", handleInteraction);
+            window.removeEventListener("touchstart", handleInteraction);
+            window.removeEventListener("mousedown", handleInteraction);
+        };
+    }, []);
 
     return (
         <Canvas
@@ -255,7 +266,6 @@ export default function KoreanCyberpunk() {
                     -(e.clientY / window.innerHeight) * 2 + 1,
                 ];
             }}
-            onPointerDown={handleInteraction}
         >
             <RenderController lastActivity={lastActivity} />
             <PerformanceMonitor
