@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from "react";
-import { Canvas, useFrame, invalidate } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import {
     Float,
     MeshTransmissionMaterial,
@@ -232,30 +232,25 @@ export default function KoreanCyberpunk() {
     const [isActive, setIsActive] = useState(true);
     const timeoutRef = useRef();
 
-    const handleInteraction = () => {
-        setIsActive((prev) => {
-            if (!prev) {
-                invalidate(); // Принудительно запрашиваем кадр для мгновенного пробуждения
-                return true;
-            }
-            return prev;
-        });
-
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        timeoutRef.current = setTimeout(() => {
-            setIsActive(false);
-        }, 10000); // Увеличим до 10 секунд для комфорта
-    };
-
     useEffect(() => {
+        const handleInteraction = () => {
+            setIsActive(prev => {
+                if (!prev) return true;
+                return prev;
+            });
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            timeoutRef.current = setTimeout(() => setIsActive(false), 20000); // Остановка через 20 секунд покоя
+        };
+
         handleInteraction();
-        window.addEventListener("mousemove", handleInteraction);
-        window.addEventListener("touchstart", handleInteraction);
-        window.addEventListener("mousedown", handleInteraction);
+        window.addEventListener("mousemove", handleInteraction, { capture: true, passive: true });
+        window.addEventListener("mousedown", handleInteraction, { capture: true, passive: true });
+        window.addEventListener("touchstart", handleInteraction, { capture: true, passive: true });
+
         return () => {
-            window.removeEventListener("mousemove", handleInteraction);
-            window.removeEventListener("touchstart", handleInteraction);
-            window.removeEventListener("mousedown", handleInteraction);
+            window.removeEventListener("mousemove", handleInteraction, { capture: true });
+            window.removeEventListener("mousedown", handleInteraction, { capture: true });
+            window.removeEventListener("touchstart", handleInteraction, { capture: true });
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
     }, []);
@@ -265,7 +260,6 @@ export default function KoreanCyberpunk() {
             frameloop={isActive ? "always" : "demand"}
             dpr={dpr}
             onPointerMove={(e) => {
-                handleInteraction();
                 mouse.current = [
                     (e.clientX / window.innerWidth) * 2 - 1,
                     -(e.clientY / window.innerHeight) * 2 + 1,
