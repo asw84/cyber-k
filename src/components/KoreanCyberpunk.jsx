@@ -7,6 +7,7 @@ import {
     PerspectiveCamera,
     Environment,
     Text,
+    PerformanceMonitor,
 } from "@react-three/drei";
 import {
     EffectComposer,
@@ -19,6 +20,7 @@ import { BlendFunction } from "postprocessing";
 import * as THREE from "three";
 
 const KOREAN_WORDS = ["사랑", "꿈", "빛", "밤", "하늘", "영원"];
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 function CyberRain() {
     const count = 100;
@@ -45,7 +47,14 @@ function CyberRain() {
 
 function RainLine({ position, speed, scale }) {
     const ref = useRef();
+    const lastTime = useRef(0);
     useFrame((state, delta) => {
+        if (isMobile) {
+            const time = state.clock.getElapsedTime();
+            if (time - lastTime.current < 1 / 30) return;
+            lastTime.current = time;
+        }
+
         if (ref.current) {
             ref.current.position.y += speed;
             if (ref.current.position.y > 25) ref.current.position.y = -25;
@@ -99,7 +108,14 @@ function FallingText({ position, speed }) {
     const ref = useRef();
     const word = useMemo(() => KOREAN_WORDS[Math.floor(Math.random() * KOREAN_WORDS.length)], []);
 
+    const lastTime = useRef(0);
     useFrame((state, delta) => {
+        if (isMobile) {
+            const time = state.clock.getElapsedTime();
+            if (time - lastTime.current < 1 / 30) return;
+            lastTime.current = time;
+        }
+
         if (ref.current) {
             ref.current.position.y -= speed;
             if (ref.current.position.y < -30) ref.current.position.y = 30;
@@ -154,7 +170,14 @@ function LuxuryGlass() {
     const glass = useRef();
     const core = useRef();
 
+    const lastTime = useRef(0);
     useFrame((state) => {
+        if (isMobile) {
+            const time = state.clock.getElapsedTime();
+            if (time - lastTime.current < 1 / 30) return;
+            lastTime.current = time;
+        }
+
         const t = state.clock.getElapsedTime();
         if (glass.current) {
             glass.current.rotation.x = t * 0.2;
@@ -180,10 +203,11 @@ function LuxuryGlass() {
 
             {/* Main Glass Object */}
             <mesh ref={glass}>
-                <torusKnotGeometry args={[1.5, 0.4, 128, 32]} />
+                <torusKnotGeometry args={[1.5, 0.4, 128, 16]} />
                 <MeshTransmissionMaterial
                     backside
-                    samples={16}
+                    samples={4}
+                    resolution={256}
                     thickness={5}
                     chromaticAberration={1.5}
                     anisotropy={0.5}
@@ -202,10 +226,12 @@ function LuxuryGlass() {
 
 export default function KoreanCyberpunk() {
     const mouse = useRef([0, 0]);
+    const [dpr, setDpr] = useState([1, 1.5]);
+    const [lowPerf, setLowPerf] = useState(false);
 
     return (
         <Canvas
-            dpr={[1, 2]}
+            dpr={dpr}
             onPointerMove={(e) => {
                 mouse.current = [
                     (e.clientX / window.innerWidth) * 2 - 1,
@@ -213,6 +239,12 @@ export default function KoreanCyberpunk() {
                 ];
             }}
         >
+            <PerformanceMonitor
+                onIncline={() => setLowPerf(false)}
+                onDecline={() => setLowPerf(true)}
+                flipflops={3}
+                onFallback={() => setLowPerf(true)}
+            />
             <color attach="background" args={["#050010"]} />
             <PerspectiveCamera makeDefault position={[0, 0, 10]} fov={50} />
 
@@ -240,15 +272,17 @@ export default function KoreanCyberpunk() {
                 <Bloom
                     luminanceThreshold={0.8}
                     mipmapBlur
-                    intensity={1.2}
+                    intensity={lowPerf ? 0.3 : 0.6}
                     radius={0.4}
                 />
                 <Vignette eskil={false} offset={0.1} darkness={1.1} />
-                <ChromaticAberration
-                    blendFunction={BlendFunction.NORMAL}
-                    offset={[0.001, 0.001]}
-                />
-                <Noise opacity={0.02} />
+                {!isMobile && !lowPerf && (
+                    <ChromaticAberration
+                        blendFunction={BlendFunction.NORMAL}
+                        offset={[0.001, 0.001]}
+                    />
+                )}
+                {!lowPerf && <Noise opacity={0.02} />}
             </EffectComposer>
         </Canvas>
     );
