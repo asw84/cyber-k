@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect } from "react";
-import { Canvas, useFrame, useThree, invalidate } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import {
     Float,
     MeshTransmissionMaterial,
@@ -224,27 +224,22 @@ function LuxuryGlass() {
     );
 }
 
-function RenderController({ lastActivity }) {
-    useFrame(() => {
-        if (Date.now() - lastActivity.current < 5000) {
-            invalidate();
-        }
-    });
-    return null;
-}
 
 export default function KoreanCyberpunk() {
     const mouse = useRef([0, 0]);
     const [dpr, setDpr] = useState([1, 1.5]);
     const [lowPerf, setLowPerf] = useState(false);
-    const lastActivity = useRef(Date.now());
+    const [isActive, setIsActive] = useState(true);
+    const timeoutRef = useRef();
 
     const handleInteraction = () => {
-        lastActivity.current = Date.now();
-        invalidate();
+        setIsActive(true);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => setIsActive(false), 5000);
     };
 
     useEffect(() => {
+        handleInteraction(); // Start active
         window.addEventListener("mousemove", handleInteraction);
         window.addEventListener("touchstart", handleInteraction);
         window.addEventListener("mousedown", handleInteraction);
@@ -252,12 +247,13 @@ export default function KoreanCyberpunk() {
             window.removeEventListener("mousemove", handleInteraction);
             window.removeEventListener("touchstart", handleInteraction);
             window.removeEventListener("mousedown", handleInteraction);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
     }, []);
 
     return (
         <Canvas
-            frameloop="demand"
+            frameloop={isActive ? "always" : "demand"}
             dpr={dpr}
             onPointerMove={(e) => {
                 handleInteraction();
@@ -267,7 +263,6 @@ export default function KoreanCyberpunk() {
                 ];
             }}
         >
-            <RenderController lastActivity={lastActivity} />
             <PerformanceMonitor
                 onIncline={() => setLowPerf(false)}
                 onDecline={() => setLowPerf(true)}
