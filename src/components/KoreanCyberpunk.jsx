@@ -227,25 +227,32 @@ function LuxuryGlass() {
 
 export default function KoreanCyberpunk() {
     const mouse = useRef([0, 0]);
-    const [dpr, setDpr] = useState([1, 1.5]);
-    const [lowPerf, setLowPerf] = useState(false);
-    const [isActive, setIsActive] = useState(true);
+    const [dpr, setDpr] = useState([1, 1.5]); // Ограничиваем разрешение для экономии GPU
+    const [lowPerf, setLowPerf] = useState(false); // Состояние низкой производительности
+    const [isActive, setIsActive] = useState(true); // Флаг активности пользователя
     const timeoutRef = useRef();
 
-    useEffect(() => {
-        const handleInteraction = () => {
-            setIsActive(prev => {
-                if (!prev) {
-                    invalidate(); // Принудительный «пинок» движка
-                    return true;
-                }
-                return prev;
-            });
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            timeoutRef.current = setTimeout(() => setIsActive(false), 30000); // 30 секунд покоя до засыпания
-        };
+    // Функция обработки активности пользователя
+    const handleInteraction = () => {
+        setIsActive(prev => {
+            if (!prev) {
+                // Если сцена спала, принудительно «пинаем» рендер для мгновенного пробуждения
+                invalidate();
+                return true;
+            }
+            return prev;
+        });
 
-        handleInteraction();
+        // Сбрасываем таймер засыпания
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        // Если 30 секунд нет действий — переходим в режим экономии энергии (demand)
+        timeoutRef.current = setTimeout(() => setIsActive(false), 30000);
+    };
+
+    useEffect(() => {
+        handleInteraction(); // Активируем при загрузке
+
+        // Слушаем события на уровне всего окна, чтобы проснуться даже от клика мимо холста
         window.addEventListener("mousemove", handleInteraction, { capture: true, passive: true });
         window.addEventListener("mousedown", handleInteraction, { capture: true, passive: true });
         window.addEventListener("touchstart", handleInteraction, { capture: true, passive: true });
@@ -260,10 +267,11 @@ export default function KoreanCyberpunk() {
 
     return (
         <Canvas
+            // В режиме ожидания (demand) рендер замирает, если ничего не меняется, экономя до 90% заряда
             frameloop={isActive ? "always" : "demand"}
             dpr={dpr}
             onPointerMove={(e) => {
-                handleInteraction();
+                handleInteraction(); // Считаем движение мыши над холстом за активность
                 mouse.current = [
                     (e.clientX / window.innerWidth) * 2 - 1,
                     -(e.clientY / window.innerHeight) * 2 + 1,
@@ -271,6 +279,7 @@ export default function KoreanCyberpunk() {
             }}
             onPointerDown={handleInteraction}
         >
+            {/* Монитор производительности: если FPS падает, снижаем качество эффектов */}
             <PerformanceMonitor
                 onIncline={() => setLowPerf(false)}
                 onDecline={() => setLowPerf(true)}
